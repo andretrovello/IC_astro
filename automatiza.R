@@ -273,3 +273,75 @@ df_delta_idx <- df_filtered_combined %>%
   rename_with(~ str_replace(., "_Miles_Diff", "_Diff"), ends_with("_Miles_Diff")) %>% # <--- CORRIGIDO
   # Seleciona as colunas chave (join_keys) e as novas colunas de diferença
   select(all_of(join_keys), ends_with("_Diff")) # <--- CORRIGIDO: usa join_keys, não ID
+
+
+
+# --- 1. Identificar as colunas que precisam ser transformadas ---
+cols_to_transform <- names(df_delta_idx %>% select(ends_with("_Diff")))
+
+# --- 2. Aplicar a transformação usando mutate(across()) e adicionar ao DF EXISTENTE ---
+df_delta_idx <- df_delta_idx %>% # Atribui o resultado de volta ao mesmo dataframe
+  mutate(
+    across(
+      all_of(cols_to_transform),
+      ~ {
+        col_media <- mean(.x, na.rm = TRUE)
+        col_desvio_padrao <- sd(.x, na.rm = TRUE)
+        (.x - col_media) / col_desvio_padrao
+      },
+      .names = "{str_replace(.col, '_Diff$', '')}_deltaidx"
+    )
+  )
+
+# Agora, 'df_delta_idx' conterá as colunas originais '_Diff' E as novas '_ZScore'
+print(head(df_delta_idx))
+
+# Para verificar as novas colunas
+print(names(df_delta_idx))
+
+
+# --- 1. Selecionar e Transformar para Formato Longo (para colunas _deltaidx) ---
+# Pega apenas as colunas que terminam com '_deltaidx'
+df_deltaidx_long <- df_delta_idx %>%
+  select(ends_with("_deltaidx")) %>% # Inclui as chaves se quiser mantê-las
+  pivot_longer(
+    cols = ends_with("_deltaidx"), # <--- As colunas a serem empilhadas (terminam com _deltaidx)
+    names_to = "Caracteristica_deltaidx", # <--- Nome da nova coluna para os NOMES originais
+    values_to = "Valor_deltaidx" # <--- Nome da nova coluna para os VALORES de deltaidx
+  ) %>%
+  # Opcional: Limpar os nomes das características no formato longo (remover '_deltaidx')
+  mutate(
+    Caracteristica_deltaidx = str_replace(Caracteristica_deltaidx, "_deltaidx$", "")
+  )
+
+print(head(df_deltaidx_long))
+print(tail(df_deltaidx_long))
+
+# --- 2. Criar o Boxplot (para colunas _deltaidx) ---
+boxplot <- ggplot(df_deltaidx_long, aes(x = Caracteristica_deltaidx, y = Valor_deltaidx)) +
+  geom_boxplot(fill = "lightgreen", color = "darkgreen", alpha = 0.7) + # Cores ajustadas novamente
+  labs(
+    title = "Boxplots dos Valores Delta por Característica", # <--- Título ajustado
+    x = "Característica", # <--- Rótulo X
+    y = "Valor Delta (Miles - Syncomil)" # <--- Rótulo Y ajustado
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotaciona os rótulos X
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.background = element_rect(fill = "white", colour = NA), # Fundo geral do plot (fora do painel)
+    panel.background = element_rect(fill = "white", colour = NA) # Fundo do painel onde os dados são plotados
+  
+  )
+
+
+# --- Salve a figura com DIMENSÕES MAIORES ---
+# Se ainda estiver espremido, AUMENTE AINDA MAIS esses valores!
+ggsave(
+  filename = "boxplot.png",
+  plot = boxplot,
+  width = 30,  # <--- LARGURA AUMENTADA (de 25 para 30)
+  height = 20, # <--- ALTURA AUMENTADA (de 15 para 20)
+  units = "in",
+  dpi = 300
+)
