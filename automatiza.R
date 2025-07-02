@@ -5,83 +5,86 @@ library(googledrive)
 library(patchwork)
 library(cowplot)
 
-install.packages('cowplot')
 
 #functions
 
+
 clean_text <- function(line) {
-  line <- unlist(strsplit(line, "\\s+"))
-  line <- line[line != "#"]
+  line <- unlist(strsplit(line, "\\s+")) # removes whitespaces (\\+s) between words
+  line <- line[line != "#"] # removes #
   return(line)
   
 }
 
 read_data_and_filter <- function(file, skip_lines) {
-  data <- read.table(file, skip = skip_lines+1, header = FALSE)
-  header <- readLines(file)[skip_lines:(skip_lines + 1)]
+  data <- read.table(file, skip = skip_lines+1, header = FALSE) # reads data skiping skip_lines+1
+  header <- readLines(file)[skip_lines:(skip_lines + 1)] # gets header from lines [[skip_lines:(skip_lines + 1)]]
   
-  print(header[2])
-  
+  # gets spectral indexes and units
   idx <- clean_text(header[1])
   unidade <- clean_text(header[2])
   
+  # gathers idx and units in the same vector
   header_final <- paste(idx, unidade)
-  colnames(data) <- header_final
+  colnames(data) <- header_final # transforms vector in data header
   
+  # finds metallicity value in file name and extracts it 
   metallicity <- str_split(file, '_')[[1]][2]
   metallicity <- sub('z', '0.', metallicity)
   
-  primeira_coluna_nome <- names(file)[1]
+  # Gets first column name in the file 
+  primeira_coluna_nome <- names(file)[1] 
   
+  # filters data to eliminate useless values
   data_colunas_filtradas <- data %>%
     select(
-      all_of(primeira_coluna_nome), # Sempre manter a primeira coluna
+      all_of(primeira_coluna_nome), # maintains first column
       where(
-        ~ !any(. == -999|. == -99 | . == 999) # Para as outras colunas, manter se NENHUM valor for -99 ou -999
+        ~ !any(. == -999|. == -99 | . == 999) # maintains other columns if all values differ fro  (-99, -999, 999)
       )
     )
   
   data_colunas_filtradas <- data_colunas_filtradas %>%
-    mutate(z = as.numeric(metallicity), # Primeiro, cria a coluna 'z'
-           .before = 1) 
+    mutate(z = as.numeric(metallicity), 
+           .before = 1 ) # adds first column with the metallicity
   
   return(data_colunas_filtradas)
   
 }
 
+# downloads data 
 download_df <- function(loc, download = FALSE){
   
-  folder <- drive_get(loc)
-  content <- drive_ls(folder)
+  folder <- drive_get(loc) # finds folder in google drive
+  content <- drive_ls(folder) # lists documents on that folder
   #print(content)
   
   sed_files <- content %>%
-    filter(str_ends(name, '_sed'))
+    filter(str_ends(name, '_sed')) # selects only the files that end with "_sed"
   
-  # ------------------------------------------------------------------
-  # NOVO: Loop para processar cada arquivo SED
-  # ------------------------------------------------------------------
+
   
-  # Crie uma lista vazia para armazenar os dataframes processados de cada arquivo
+  # crates list to store dataframes
   files_list <- list()
   
-  # Itera sobre cada linha (que representa um arquivo) no dataframe sed_files
+  # Iterates over each file in sed_files 
   for (i in 1:nrow(sed_files)) {
-    current_file_info <- sed_files[i, ]
-    file_name_drive <- current_file_info$name
+    current_file_info <- sed_files[i, ] # stores current file in variable
+    file_name_drive <- current_file_info$name # stores file name in variable 
     
-    # Garante que o nome do arquivo local tenha a extensão .txt
+    # Adds ".txt" to file name only if it doesn´t exist yet
     if (!grepl('\\.txt$', file_name_drive)) {
       local_file_name <- paste0(file_name_drive, '.txt')
     } else {
       local_file_name <- file_name_drive
     }
-    files_list <- c(files_list, local_file_name)
+    files_list <- c(files_list, local_file_name) #adds new name to variable 
     
-    message(paste("Processando arquivo:", file_name_drive)) # Mensagem para acompanhar o progresso
+    message(paste("Processando arquivo:", file_name_drive)) # Progress info message 
     
+    # if download = True, downloads the files from Google Drive to the computer
     if (download == TRUE) {
-      # Baixar o arquivo atual
+      
       drive_download(
         current_file_info,
         path = local_file_name,
@@ -92,195 +95,149 @@ download_df <- function(loc, download = FALSE){
   return(files_list)
 }
 
+# creates dataframe with all metallicities 
 create_df <- function(files_list) {
-  files_list <- sort(unlist(files_list))
+  files_list <- sort(unlist(files_list)) # sorts file names in order
   
   
-  df_combined <- data.frame()
+  df_combined <- data.frame() #creates new dataframe
+  # iterates iver file names skiping 2 in every iteration
   for (i in seq(from = 1, to = length(files_list), by = 2)) {
-    first_part <- read_data_and_filter(files_list[[i]], 31)
-    second_part <- read_data_and_filter(files_list[[i+1]], 31)
-    full_data <- inner_join(first_part, second_part, by = c('z', 'log-age (yr)'))
+    first_part <- read_data_and_filter(files_list[[i]], 31) # first half of indexes is in the even file 
+    second_part <- read_data_and_filter(files_list[[i+1]], 31) # second half of indexes is in the odd file 
+    # creates full data with both parts of the same metallicity 
+    full_data <- inner_join(first_part, second_part, by = c('z', 'log-age (yr)')) # joins horizontally both dfs by 'z' and 'log age'
     
-    df_combined <- bind_rows(df_combined, full_data)
+    df_combined <- bind_rows(df_combined, full_data) # add full data vertically in the end of the combined dataframe
     
   }
   return(df_combined)
 }
 
-drive_auth()
-loc_miles <- 'IC_Astro/Input/Models_July_2019/miles'
-loc_syncomil <- 'IC_Astro/Input/Models_July_2019/syncomil'
+drive_auth() # authenticates drive 
+loc_miles <- 'IC_Astro/Input/Models_July_2019/miles' # location of miles folder 
+loc_syncomil <- 'IC_Astro/Input/Models_July_2019/syncomil' # location of syncomil folder
 
 
+# gets file list of each spectral library 
+file_list_miles <- download_df(loc_miles, download = TRUE)
+file_list_syncomil <- download_df(loc_syncomil, download = TRUE)
 
-file_list_miles <- download_df(loc_miles, download = FALSE)
-file_list_syncomil <- download_df(loc_syncomil, download = FALSE)
-
-
+# creates dataframes
 df_miles <- create_df(file_list_miles)
 df_syncomil <- create_df(file_list_syncomil)
 
-
-print(name(df_syncomil))
-      
+# filters by log-age 
 df_miles_filtered <- df_miles %>%
   filter(`log-age (yr)` >= 7 & `log-age (yr)` <= 10)
 df_syncomil_filtered <- df_syncomil %>%
   filter(`log-age (yr)` >= 7 & `log-age (yr)` <= 10)
 
-
-# Supondo que df_miles_filtered e df_syncomil_filtered já estão definidos
-# e contêm a coluna `CN_1 (mag)` com dados compatíveis e alinhados.
-
-ggplot() +
-  geom_point(aes(y = df_miles_filtered$`CN_1 (mag)`, x = df_syncomil_filtered$`CN_1 (mag)`),
-             color = "red", size = 1, alpha = 0.7) +
-  # --- ADICIONA A LINHA 1:1 AQUI ---
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", size = 0.8) +
-  # ---------------------------------
-labs(title = "CN_1",
-     x = "Miles",
-     y = "Syncomil") +
-  theme_classic()
-      
-
-dados_plot <- data.frame(
-  CN1_Miles = df_miles_filtered$`CN_1 (mag)`,
-  CN1_Syncomil = df_syncomil_filtered$`CN_1 (mag)`,
-  Log_Age = df_miles_filtered$`log-age (yr)` # Assumindo que log-age vem de miles
-)
-# --------------------------------------------------------------------------
-
-ggplot(data = dados_plot, aes(x = CN1_Syncomil, y = CN1_Miles, color = Log_Age)) +
-  geom_point(size = 1.5, alpha = 0.7) +
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", size = 0.8) +
-  labs(title = "CN_1 (mag)",
-       x = "SPS-S",
-       y = "SPS-M",
-       color = "log-age (yr)") + # Rótulo da legenda de cores
-  theme_classic() +
-  # --- ADICIONAR ESCALA DE CORES PARA PERSONALIZAR ---
-  scale_color_viridis_c(option = "plasma", direction = -1)
-
-
-print(df_miles_filtered['CN_1 (mag)'])
-names(df_miles_filtered[1])
-
-
-# Crie uma lista VAZIA para armazenar os objetos ggplot
+# Creates list to add plots 
 all_plots <- list()
-plot_index <- 1 # Para controlar o índice da lista
+plot_index <- 1 # list index
 
+# iterates over columns starting from the third one (skips z and log-age to get only indexes)
 for (name in names(df_miles_filtered)[3:length(names(df_miles_filtered))]) {
+  # creates dataframe with both dataframes for the respective index (name) and log-age
   dados_plot <- data.frame(
   Miles = df_miles_filtered[[name]],
   Syncomil = df_syncomil_filtered[[name]],
   Log_Age = df_miles_filtered[["log-age (yr)"]] # Assumindo que log-age vem de miles
   )
   
+  # plots scatter point graph Syncomil x Miles for current idx (name) and uses log-age to color points
   plot <- ggplot(data = dados_plot, aes(x = Syncomil, y = Miles, color = Log_Age)) +
     geom_point(size = 1.5, alpha = 0.7) +
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", size = 0.8) +
+    # plots 1-1 line
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", linewidth = 0.8) +
     labs(title = name,
-         x = NULL,
+         x = NULL, #remove axis names 
          y = NULL,
-         color = "log-age (yr)") + # Rótulo da legenda de cores
+         color = "log-age (yr)") + # labels colormap legend
     theme_classic() +
-    # --- ADICIONAR ESCALA DE CORES PARA PERSONALIZAR ---
     scale_color_viridis_c(option = "plasma", direction = -1)
   
-  all_plots[[plot_index]] <- plot
-  plot_index = plot_index+1
+  all_plots[[plot_index]] <- plot # adds to plot list at index plot_index
+  plot_index = plot_index+1 # increments index
 }
 
+print(all_plots[1])
 
-# A figura combinada final
-final_figure <- wrap_plots(all_plots, ncol = 6, nrow = 6) +
+# Creates grid with qall figures
+final_fig <- wrap_plots(all_plots, ncol = 6, nrow = 6) +
   plot_layout(
-    guides = "collect", # <--- ESSENCIAL: Coleta todas as legendas idênticas em uma só
+    guides = "collect", # collects all identical legends
   ) +
-  # --- ADICIONA RÓTULOS DE EIXO GLOBAIS E ESTILO GERAL À FIGURA COMBINADA ---
+  # add global features to figure
   plot_annotation(
-    title = 'Comparação de SPS-Syncomil vs. SPS-Miles', # Título geral da figura
-    tag_levels = 'A', # Adiciona rótulos A, B, C, etc. aos subplots
+    title = 'Comparação de SPS-Syncomil vs. SPS-Miles', # Figure title (super title)
+    tag_levels = 'A', # Tags figures 
     theme = theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold", margin = margin(b = 10)),
       plot.tag = element_text(face = 'bold', size = 12, margin = margin(t = 5, l = 5)),
-      # Ajusta margens para toda a figura para dar espaço aos rótulos globais
       plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")
     )
   ) &
-  # <--- ESSENCIAL: Aplica rótulos de eixo para toda a figura combinada ---
-  # O operador '&' aplica estas camadas a todos os subplots e, com 'labs()',
-  # patchwork os interpreta como rótulos globais.
+  # adds global axis labels (super labels)
   labs(x = "SPS-Syncomil", y = "SPS-Miles") &
-  # --- POSICIONAMENTO E ESTILO DA LEGENDA COLETADA ---
-  # Este 'theme()' também é aplicado globalmente.
   theme(
-    legend.position = "right", # Posição da legenda coletada (pode ser "bottom", "right", etc.)
-    legend.title = element_text(size = 10, face = "bold"), # Estilo do título da legenda
-    legend.text = element_text(size = 9), # Estilo do texto da legenda
-    legend.box.margin = margin(0, 0, 0, 15, unit = "pt") # Margem da caixa da legenda
+    legend.position = "right", 
+    legend.title = element_text(size = 10, face = "bold"), 
+    legend.text = element_text(size = 9), 
+    legend.box.margin = margin(0, 0, 0, 15, unit = "pt") 
   )
-
+# adds global axis labels (super labels)
 final_fig <- ggdraw(final_fig) +
   draw_label("SPS-S", x = 0.5, y = 0.03, vjust = 0, hjust = 0.5, size = 12, fontface = "bold") +
   draw_label("SPS-M", x = 0.03, y = 0.5, vjust = 0.5, hjust = 0, angle = 90, size = 12, fontface = "bold")
 
-# --- Salve a figura com DIMENSÕES MAIORES ---
-# Se ainda estiver espremido, AUMENTE AINDA MAIS esses valores!
+# saves figure with all plots
 ggsave(
   filename = "todos_os_plots_combinados.png",
   plot = final_fig,
-  width = 20,  # <--- LARGURA AUMENTADA (de 25 para 30)
-  height = 30, # <--- ALTURA AUMENTADA (de 15 para 20)
+  width = 20, 
+  height = 30, 
   units = "in",
   dpi = 300
 )
 
 # Boxplot
 
-# --- 1. Identificar Colunas Comuns e Numéricas para Subtração ---
-# Encontre os nomes das colunas comuns (excluindo a coluna chave 'ID' se não for numérica)
+join_keys <- c('z', 'log-age (yr)') # inner join keys
+common_cols <- intersect(names(df_miles_filtered), names(df_syncomil_filtered)) # finds common names in dataframes
+common_cols <- setdiff(common_cols, join_keys) # removes columns that are not spectral indexes
 
-join_keys <- c('z', 'log-age (yr)')
-common_cols <- intersect(names(df_miles_filtered), names(df_syncomil_filtered))
-common_cols <- setdiff(common_cols, join_keys) # Remove a coluna ID das comuns a serem subtraídas
-
-# Filtra apenas as colunas que são numéricas e comuns
+# checks columns where all elements are numeric
 numeric_common_cols <- common_cols[sapply(df_miles[common_cols], is.numeric) &
                                      sapply(df_syncomil[common_cols], is.numeric)]
 
 
+# combines dataframes horizontaly
 df_filtered_combined <- inner_join(df_miles_filtered, df_syncomil_filtered, by = join_keys, suffix = c('_Miles', '_Syncomil'))
 
-# --- 3. Criar o Novo Dataframe com as Subtrações (CORRIGIDO) ---
+# creates new dataframe for delta idx
 df_delta_idx <- df_filtered_combined %>%
-  # Não é necessário usar select aqui para pré-filtrar as colunas para o 'across'.
-  # 'across' pode operar em um subconjunto de colunas diretamente.
   mutate(
     across(
-      # Aplica a operação às colunas que são numéricas e têm o sufixo '_Miles'
-      # e que correspondem às suas colunas numéricas comuns antes do sufixo.
-      # Usamos 'paste0' para construir os nomes esperados das colunas '_Miles'.
-      all_of(paste0(numeric_common_cols, "_Miles")), # <--- CORRIGIDO AQUI
-      ~ .x - df_filtered_combined[[str_replace(cur_column(), "_Miles", "_Syncomil")]], # Subtrai
-      .names = "{.col}_Diff" # Cria novas colunas com sufixo _Diff
+      # selects columns that end in '_Miles'
+      all_of(paste0(numeric_common_cols, "_Miles")),
+      ~ .x - df_filtered_combined[[str_replace(cur_column(), "_Miles", "_Syncomil")]], # subtracts them from Syncomil
+      .names = "{.col}_Diff" # cretes new columns with the suffix '_Diff'
     )
   ) %>%
-  # Renomeia as colunas de diferença, removendo o sufixo "_Miles" extra
+  # removes extra '_Miles'
   rename_with(~ str_replace(., "_Miles_Diff", "_Diff"), ends_with("_Miles_Diff")) %>% # <--- CORRIGIDO
-  # Seleciona as colunas chave (join_keys) e as novas colunas de diferença
-  select(all_of(join_keys), ends_with("_Diff")) # <--- CORRIGIDO: usa join_keys, não ID
+  # selects 'join keys' and 'Diff' columns
+  select(all_of(join_keys), ends_with("_Diff")) 
 
 
 
-# --- 1. Identificar as colunas que precisam ser transformadas ---
+# identifies columns that need transformation
 cols_to_transform <- names(df_delta_idx %>% select(ends_with("_Diff")))
 
-# --- 2. Aplicar a transformação usando mutate(across()) e adicionar ao DF EXISTENTE ---
-df_delta_idx <- df_delta_idx %>% # Atribui o resultado de volta ao mesmo dataframe
+# normalizes spectral index columns using x_new = (x-mean(x))/std(x)
+df_delta_idx <- df_delta_idx %>% 
   mutate(
     across(
       all_of(cols_to_transform),
@@ -293,11 +250,6 @@ df_delta_idx <- df_delta_idx %>% # Atribui o resultado de volta ao mesmo datafra
     )
   )
 
-# Agora, 'df_delta_idx' conterá as colunas originais '_Diff' E as novas '_ZScore'
-print(head(df_delta_idx))
-
-# Para verificar as novas colunas
-print(names(df_delta_idx))
 
 
 # --- 1. Selecionar e Transformar para Formato Longo (para colunas _deltaidx) ---
