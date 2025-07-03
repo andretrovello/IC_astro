@@ -301,63 +301,6 @@ ggsave(
 
 
 # idx KDE plot
-
-# iterates over columns starting from the third one (skips z and log-age to get only indexes)
-for (name in names(df_miles_filtered)[3:length(names(df_miles_filtered))]) {
-  # creates dataframe with both dataframes for the respective index (name) and log-age
-  dados_plot <- data.frame(
-    Miles = df_miles_filtered[[name]],
-    Syncomil = df_syncomil_filtered[[name]],
-    Log_Age = df_miles_filtered[["log-age (yr)"]] # Assumindo que log-age vem de miles
-  )
-  
-  # plots scatter point graph Syncomil x Miles for current idx (name) and uses log-age to color points
-  plot <- ggplot(data = dados_plot, aes(x = Syncomil, y = Miles, color = Log_Age)) +
-    geom_point(size = 1.5, alpha = 0.7) +
-    # plots 1-1 line
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", linewidth = 0.8) +
-    labs(title = name,
-         x = NULL, #remove axis names 
-         y = NULL,
-         color = "log-age (yr)") + # labels colormap legend
-    theme_classic() +
-    scale_color_viridis_c(option = "plasma", direction = -1)
-  
-  all_plots[[plot_index]] <- plot # adds to plot list at index plot_index
-  plot_index = plot_index+1 # increments index
-}
-
-print(all_plots[1])
-
-# Creates grid with qall figures
-final_fig <- wrap_plots(all_plots, ncol = 6, nrow = 6) +
-  plot_layout(
-    guides = "collect", # collects all identical legends
-  ) +
-  # add global features to figure
-  plot_annotation(
-    title = 'Comparação de SPS-Syncomil vs. SPS-Miles', # Figure title (super title)
-    tag_levels = 'A', # Tags figures 
-    theme = theme(
-      plot.title = element_text(hjust = 0.5, size = 16, face = "bold", margin = margin(b = 10)),
-      plot.tag = element_text(face = 'bold', size = 12, margin = margin(t = 5, l = 5)),
-      plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")
-    )
-  ) &
-  # adds global axis labels (super labels)
-  labs(x = "SPS-Syncomil", y = "SPS-Miles") &
-  theme(
-    legend.position = "right", 
-    legend.title = element_text(size = 10, face = "bold"), 
-    legend.text = element_text(size = 9), 
-    legend.box.margin = margin(0, 0, 0, 15, unit = "pt") 
-  )
-# adds global axis labels (super labels)
-final_fig <- ggdraw(final_fig) +
-  draw_label("SPS-S", x = 0.5, y = 0.03, vjust = 0, hjust = 0.5, size = 12, fontface = "bold") +
-  draw_label("SPS-M", x = 0.03, y = 0.5, vjust = 0.5, hjust = 0, angle = 90, size = 12, fontface = "bold")
-
-
 # --- 1. Selecionar e Transformar para Formato Longo (para colunas _deltaidx) ---
 # Pega apenas as colunas que terminam com '_deltaidx'
 df_delta_idx_kde <- df_delta_idx %>%
