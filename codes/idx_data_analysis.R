@@ -4,8 +4,9 @@ library(tidyverse)
 library(googledrive)
 library(patchwork)
 library(cowplot)
+library(R.utils)
 
-source('C:/Users/dedet/Desktop/IC_astro/full_wrangling.R')
+source('C:/Users/dedet/Desktop/IC_astro/codes/full_wrangling.R')
 
 
 
@@ -17,13 +18,12 @@ loc_cbc <- 'IC_Astro/Input/Models_July_2019/cbc' # location of cbc folder
 # gets file list of each spectral library 
 file_list_miles <- download_df(loc_miles, download = FALSE, 'miles', unzip = FALSE)
 file_list_syncomil <- download_df(loc_syncomil, download = FALSE, 'syncomil', unzip = FALSE)
-file_list_cbc <- download_df(loc_cbc, download = TRUE, 'cbc', unzip = TRUE)
+file_list_cbc <- download_df(loc_cbc, download = FALSE, 'cbc', unzip = FALSE)
 
 # creates dataframes
 df_miles <- create_df(file_list_miles, 'miles')
 df_syncomil <- create_df(file_list_syncomil, 'syncomil')
 df_cbc <- create_df(file_list_cbc, 'cbc')
-
 
 
 # --- Definição do mapeamento de renomeação como um VETOR NOMEADO no R ---
@@ -63,6 +63,7 @@ df_syncomil_filtered <- df_syncomil_renamed %>%
 join_keys = c('z', 'log_age')
 df_miles_syncomil <- inner_join(df_miles_filtered, df_syncomil_filtered, by = join_keys, suffix = c('_Miles', '_Syncomil'))
 df_cbc_syncomil <- inner_join(df_cbc_filtered, df_syncomil_filtered, by = join_keys, suffix = c('_CBC', '_Syncomil'))
+
 
 
 # -----------Plot 1-1 (miles-syncomil) -----------

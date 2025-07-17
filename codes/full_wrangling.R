@@ -83,7 +83,7 @@ read_data_and_filter <- function(file, skip_lines, spec_library) {
 }
 
 # downloads data 
-download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE){
+download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, syncomiles_filetype = '_sed', cbc_filetype = 'lsindx.gz'){
   
   folder <- drive_get(loc) # finds folder in google drive
   content <- drive_ls(folder) # lists documents on that folder
@@ -95,7 +95,7 @@ download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE){
   
   if (spec_library == 'miles' | spec_library == 'syncomil') {
     sed_files <- content %>%
-      filter(str_ends(name, '_sed')) # selects only the files that end with "_sed"
+      filter(str_ends(name, synco_miles_filetype)) # selects only the files that end with "_sed"
 
     # Iterates over each file in sed_files 
     for (i in 1:nrow(sed_files)) {
@@ -125,7 +125,7 @@ download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE){
   }
   else if (spec_library == 'cbc') {
     sed_files <- content %>% 
-      filter(str_ends(name, 'lsindx.gz'))
+      filter(str_ends(name, cbc_filetype))
     base_path <- "C:/Users/dedet/Documents"
     
     for (i in 1:nrow(sed_files)){
@@ -193,7 +193,7 @@ create_df <- function(files_list, spec_library) {
       full_data <- inner_join(first_part, second_part, by = c('z', 'log-age')) # joins horizontally both dfs by 'z' and 'log age'
       
       df_combined <- bind_rows(df_combined, full_data) # add full data vertically in the end of the combined dataframe
-      
+
     }
   }
   
