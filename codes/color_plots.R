@@ -128,8 +128,6 @@ fig4 <- ggplot(color_combined, aes(delta, fill = Z, color = Z)) +
     x = expression(paste(Delta, " colour")), 
     y = "Scaled density",
     title = "Figure 4: Color Differences Between Stellar Population Models",
-    subtitle = "Density plots showing the distributions of colour differences ( colour, defined in Section 4.1.1) for the different combinations of SDSS-based
-colours (in rows) and the model effects (in columns). Colours indicate the metallicities Z, as indicated in the label.",
     fill = "Metallicity (Z)",
     color = "Metallicity (Z)"
   ) +
@@ -162,9 +160,7 @@ fig5 <- ggplot(color_combined, aes(x = color, y = delta, fill = question)) +
   labs(
     x = 'Color',
     y = expression(paste(Delta, 'color')),
-    title = "Figure 4: Color Differences Between Stellar Population Models",
-    subtitle = "Density plots showing the distributions of colour differences ( colour, defined in Section 4.1.1) for the different combinations of SDSS-based
-colours (in rows) and the model effects (in columns). Colours indicate the metallicities Z, as indicated in the label.",
+    title = "Figure 5: Boxplot for Color Differences Between Stellar Population Models",
     fill = "",
     color = "Metallicity (Z)"
   ) +
@@ -189,3 +185,34 @@ print(fig5)
 ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig5_color_boxplot.png", fig5, 
        width = 16, height = 10, units = "in", dpi = 300)
 
+fig6 <- ggplot(color_combined, aes(x = log_age_yr, y = delta, color = Z)) +
+  facet_grid(color ~ question, labeller = labeller(color = color_labels)) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0) +
+  coord_cartesian(ylim = c(-0.3,0.3)) +
+  labs(
+    x = 'log (age)', 
+    y = expression(paste(Delta, 'color')),
+    title = "Figure 6: Color Differences Between Stellar Population Models as a Function of Log Age ",
+    color = "Metallicity (Z)"
+  ) +
+  # Apply clean theme
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 11),
+    legend.position = "bottom",
+    # --- ADICIONE OU VERIFIQUE ESTAS LINHAS ---
+    plot.background = element_rect(fill = "white", colour = NA), # Fundo de todo o gráfico
+    panel.background = element_rect(fill = "white", colour = NA) # Fundo do painel de dados
+    # ----------------------------------------
+  )
+  
+
+print(fig6)
+
+# Save the plot
+ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig6_color_differences.png", fig6, 
+       width = 16, height = 10, units = "in", dpi = 300)
