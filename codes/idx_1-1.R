@@ -13,10 +13,12 @@ loc_miles <- 'IC_Astro/Input/Models_July_2019/miles' # location of miles folder
 loc_syncomil <- 'IC_Astro/Input/Models_July_2019/syncomil' # location of syncomil folder
 loc_cbc <- 'IC_Astro/Input/Models_July_2019/cbc' # location of cbc folder 
 
+base_path = "C:/Users/dedet/Desktop/IC_astro/input/"
+
 # gets file list of each spectral library 
 file_list_miles <- download_df(loc_miles, download = FALSE, 'miles', unzip = FALSE)
 file_list_syncomil <- download_df(loc_syncomil, download = FALSE, 'syncomil', unzip = FALSE)
-file_list_cbc <- download_df(loc_cbc, download = FALSE, 'cbc', unzip = FALSE)
+file_list_cbc <- download_df(loc_cbc, download = TRUE, 'cbc', unzip = TRUE)
 
 # creates dataframes
 df_miles <- create_df(file_list_miles, 'miles')
@@ -85,10 +87,9 @@ cbc_syncomil <- inner_join(
 fig9 <- ggplot(cbc_syncomil, aes(x = idx_value_syncomil, y = idx_value_cbc, color = log_age)) +
   geom_point(size = 1.5, alpha = 0.7) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", linewidth = 0.8) + # Linha 1:1
-  facet_wrap(~ idx_name, scales = "free", ncol = 5) # <--- facet_wrap para cada índice
-  
+  facet_wrap(~ idx_name, scales = "free", ncol = 5) + # <--- facet_wrap para cada índice
   labs(
-    title = "Figure 9: Spectral indices predicted by SPS-M (y-axis) versus SPS-S (x-axis) models.",
+    title = "Figure 9: Spectral indices predicted by SPS-C (y-axis) versus SPS-S (x-axis) models.",
     x = "Valor do Índice (SynMILES)",
     y = "Valor do Índice (CBC)",
     color = "log(Idade) (yr)" # Rótulo da legenda de cor
@@ -133,12 +134,11 @@ miles_syncomil <- inner_join(
 fig8 <- ggplot(miles_syncomil, aes(x = idx_value_syncomil, y = idx_value_miles, color = log_age)) +
   geom_point(size = 1.5, alpha = 0.7) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "blue", linewidth = 0.8) + # Linha 1:1
-  facet_wrap(~ idx_name, scales = "free", ncol = 5) # <--- facet_wrap para cada índice
-  
+  facet_wrap(~ idx_name, scales = "free", ncol = 5) + # <--- facet_wrap para cada índice
   labs(
     x = "SPS-S", 
     y = "SPS-C",
-    title = "Figure 8: Spectral indices predicted by SPS-C (y-axis) versus SPS-S (x-axis) models.",
+    title = "Figure 8: Spectral indices predicted by SPS-M (y-axis) versus SPS-S (x-axis) models.",
     color = "log age (yr)"
   ) +
   theme_minimal() +

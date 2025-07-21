@@ -17,13 +17,17 @@ mixture2metallicity <- function(mixture) {
 
 clean_text <- function(line) {
   line <- unlist(strsplit(line, "\\s+")) # removes whitespaces (\\+s) between words
-  line <- line[line != "#"] # removes #
+  #line <- line[line != "#"] # removes #
+  line <- str_replace(line, "^#", "") # Substitui '#' no início (^) por nada ("")
   return(line)
 }
 
-read_data_and_filter <- function(file, skip_lines, spec_library) {
-  data <- read.table(file, skip = skip_lines+1, header = FALSE) # reads data skiping skip_lines+1
-  header <- readLines(file)[skip_lines] # gets header from lines [[skip_lines:(skip_lines + 1)]]
+read_data_and_filter <- function(base_path = "C:/Users/dedet/Desktop/IC_astro/input/", file, skip_lines, spec_library) {
+  print(file)
+  print(base_path)
+  print(paste0(base_path,file))
+  data <- read.table(paste0(base_path,file), skip = skip_lines+1, header = FALSE) # reads data skiping skip_lines+1
+  header <- readLines(paste0(base_path,file))[skip_lines] # gets header from lines [[skip_lines:(skip_lines + 1)]]
   
   # gathers idx and units in the same vector
   header_final <- clean_text(header)
@@ -33,6 +37,7 @@ read_data_and_filter <- function(file, skip_lines, spec_library) {
   
     # finds metallicity value in file name and extracts it 
     mixture <- str_split(file, '_')[[1]][7]
+    print(mixture)
     metallicity <- mixture2metallicity(mixture)
 
     
@@ -83,7 +88,7 @@ read_data_and_filter <- function(file, skip_lines, spec_library) {
 }
 
 # downloads data 
-download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, syncomiles_filetype = '_sed', cbc_filetype = 'lsindx.gz'){
+download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, synco_miles_filetype = '_sed', cbc_filetype = 'lsindx.gz', base_path = "C:/Users/dedet/Desktop/IC_astro/input/"){
   
   folder <- drive_get(loc) # finds folder in google drive
   content <- drive_ls(folder) # lists documents on that folder
@@ -102,13 +107,16 @@ download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, sync
       current_file_info <- sed_files[i, ] # stores current file in variable
       file_name_drive <- current_file_info$name # stores file name in variable 
       
+      final_local_file_path <- file.path(base_path, file_name_drive)
+      files_list <- c(files_list, file_name_drive)
+      
       # Adds ".txt" to file name only if it doesn´t exist yet
-      if (!grepl('\\.txt$', file_name_drive)) {
-        local_file_name <- paste0(file_name_drive, '.txt')
-      } else {
-        local_file_name <- file_name_drive
-      }
-      files_list <- c(files_list, local_file_name) #adds new name to variable 
+      #if (!grepl('\\.txt$', final_local_file_path)) {
+      #local_file_name <- paste0(file_name_drive, '.txt')
+      #} else {
+      #  local_file_name <- file_name_drive
+      #}
+      #files_list <- c(files_list, local_file_name) #adds new name to variable 
       
       message(paste("Processando arquivo:", file_name_drive)) # Progress info message 
       
@@ -117,7 +125,7 @@ download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, sync
         
         drive_download(
           current_file_info,
-          path = local_file_name,
+          path = final_local_file_path,
           overwrite = TRUE
         )
       }
@@ -126,15 +134,15 @@ download_df <- function(loc, download = FALSE, spec_library, unzip = FALSE, sync
   else if (spec_library == 'cbc') {
     sed_files <- content %>% 
       filter(str_ends(name, cbc_filetype))
-    base_path <- "C:/Users/dedet/Documents"
     
     for (i in 1:nrow(sed_files)){
       current_file <- sed_files[i,]
       drive_file_name <- current_file$name 
       
+      
       final_local_file_path <- file.path(base_path, drive_file_name)
       output_file_path <- str_remove(final_local_file_path, "\\.gz$")
-      files_list <- c(files_list, output_file_path)
+      files_list <- c(files_list, drive_file_name)
       
       if (download == TRUE) {
         message(paste("Baixando:", drive_file_name))
@@ -187,8 +195,8 @@ create_df <- function(files_list, spec_library) {
   if (spec_library == 'miles' | spec_library == 'syncomil') {
     # iterates iver file names skiping 2 in every iteration
     for (i in seq(from = 1, to = length(files_list), by = 2)) {
-      first_part <- read_data_and_filter(files_list[[i]], 31, 'miles') # first half of indexes is in the even file 
-      second_part <- read_data_and_filter(files_list[[i+1]], 31, 'miles') # second half of indexes is in the odd file 
+      first_part <- read_data_and_filter(file = files_list[[i]], skip_lines = 31, spec_library = 'miles') # first half of indexes is in the even file 
+      second_part <- read_data_and_filter(file = files_list[[i+1]], skip_lines = 31, spec_library = 'miles') # second half of indexes is in the odd file 
       # creates full data with both parts of the same metallicity 
       full_data <- inner_join(first_part, second_part, by = c('z', 'log-age')) # joins horizontally both dfs by 'z' and 'log age'
       
@@ -200,7 +208,7 @@ create_df <- function(files_list, spec_library) {
   else if (spec_library == 'cbc'){
     for (i in 1:length(files_list)) {
       # creates full data with both parts of the same metallicity 
-      full_data <- read_data_and_filter(files_list[i], 2, 'cbc')
+      full_data <- read_data_and_filter(file = files_list[i], skip_lines = 2, spec_library = 'cbc')
       
       df_combined <- bind_rows(df_combined, full_data) # add full data vertically in the end of the combined dataframe
       
@@ -208,3 +216,97 @@ create_df <- function(files_list, spec_library) {
   }
   return(df_combined)
 }
+
+
+fix_syncomiles_header_colors <- function(header, spec_library) {
+  if (spec_library == 'miles' | spec_library == 'syncomil'){
+    for (i in 1:length(header)) {
+      if (i >= 2 & i <= 6) {
+        header[i] = paste0(header[i], '_SDSS')
+      }
+    }
+  }
+  else if (spec_library == 'cbc'){
+    for (i in 1:length(header)) {
+      if (i >= 3 & i <= 7) {
+        header[i] = paste0(header[i], '_SDSS')
+      }
+    }
+  }
+  return (header)
+}
+
+
+# creates dataframe with all metallicities 
+create_df_colors <- function(files_list, spec_library) {
+  files_list <- sort(unlist(files_list)) # sorts file names in order
+  df_combined <- data.frame() #creates new dataframe
+  
+  if (spec_library == 'miles' | spec_library == 'syncomil') {
+    # iterates iver file names skiping 2 in every iteration
+    for (i in 1:length(files_list)) {
+      # creates full data with both parts of the same metallicity 
+      full_data <- read_data_and_filter_colors(file = files_list[i], skip_lines = 30, spec_library = 'miles')
+      
+      df_combined <- bind_rows(df_combined, full_data) # add full data vertically in the end of the combined dataframe
+      
+    }
+  }
+  
+  else if (spec_library == 'cbc'){
+    for (i in 1:length(files_list)) {
+      # creates full data with both parts of the same metallicity 
+      full_data <- read_data_and_filter_colors(file = files_list[i], skip_lines = 1, spec_library = 'cbc')
+      
+      df_combined <- bind_rows(df_combined, full_data) # add full data vertically in the end of the combined dataframe
+      
+    }
+  }
+  return(df_combined)
+}
+
+read_data_and_filter_colors <- function(base_path = "C:/Users/dedet/Desktop/IC_astro/input/", file, skip_lines, spec_library) {
+  data <- read.table(paste0(base_path,file), skip = skip_lines+1, header = FALSE) # reads data skiping skip_lines+1
+  header <- readLines(paste0(base_path,file))[skip_lines] # gets header from lines [[skip_lines:(skip_lines + 1)]]
+  
+  # gathers idx and units in the same vector
+  header_final <- clean_text(header)
+  
+  
+  if (spec_library == 'cbc') {
+    colnames(data) <- fix_syncomiles_header_colors(header_final, spec_library)
+    
+    # finds metallicity value in file name and extracts it 
+    mixture <- str_split(file, '_')[[1]][7]
+    metallicity <- mixture2metallicity(mixture)
+    
+    
+    # Gets first column name in the file 
+    primeira_coluna_nome <- names(file)[2]
+    
+    data_colunas_filtradas <- data %>%
+      mutate(Z = as.numeric(metallicity), 
+             .before = 1 ) # adds first column with the metallicity
+    
+    return(select(data_colunas_filtradas, -all_of("Isochrone")))
+  }
+  
+  else if (spec_library == 'miles' | spec_library == 'syncomil'){
+    colnames(data) <- fix_syncomiles_header_colors(header_final, spec_library)
+    # finds metallicity value in file name and extracts it 
+    metallicity <- str_split(file, '_')[[1]][2]
+    metallicity <- sub('z', '0.', metallicity)
+    
+    # Gets first column name in the file 
+    primeira_coluna_nome <- names(file)[1] 
+    
+    
+    data_colunas_filtradas <- data %>%
+      mutate(Z = as.numeric(metallicity), 
+             .before = 1 ) # adds first column with the metallicity
+    
+    return(data_colunas_filtradas)
+    
+  }
+}
+

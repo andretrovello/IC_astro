@@ -13,11 +13,13 @@ loc_miles <- 'IC_Astro/Input/Models_July_2019/miles' # location of miles folder
 loc_syncomil <- 'IC_Astro/Input/Models_July_2019/syncomil' # location of syncomil folder
 loc_cbc <- 'IC_Astro/Input/Models_July_2019/cbc' # location of cbc folder 
 
+base_path = "C:/Users/dedet/Desktop/IC_astro/input"
 # gets file list of each spectral library 
-file_list_miles <- download_df(loc_miles, download = FALSE, 'miles', unzip = FALSE)
-file_list_syncomil <- download_df(loc_syncomil, download = FALSE, 'syncomil', unzip = FALSE)
-file_list_cbc <- download_df(loc_cbc, download = FALSE, 'cbc', unzip = FALSE)
+file_list_miles <- download_df(loc_miles, download = TRUE, 'miles', unzip = FALSE, base_path = base_path)
+file_list_syncomil <- download_df(loc_syncomil, download = TRUE, 'syncomil', unzip = TRUE, base_path = base_path)
+file_list_cbc <- download_df(loc_cbc, download = TRUE, 'cbc', unzip = TRUE, base_path = base_path)
 
+print(file_list_cbc)
 # creates dataframes
 df_miles <- create_df(file_list_miles, 'miles')
 df_syncomil <- create_df(file_list_syncomil, 'syncomil')
@@ -148,7 +150,7 @@ fig7 <- ggplot(indices_combined, aes(delta, color = question, fill = question)) 
 print(fig7)
 
 # Save the plot
-ggsave("C:/Users/dedet/Desktop/IC_astro/output/figure7_indices_density.png", fig7, 
+ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig7_indices_density.png", fig7, 
        width = 16, height = 12, units = "in", dpi = 300)
 
 cat("\nFigure 7 saved as 'figure7_indices_density.png'\n")
