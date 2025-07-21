@@ -37,12 +37,13 @@ df_miles <- df_miles %>%
 df_cbc_filtered <- df_cbc %>%
   filter(`log_age_yr` >= 7 & `log_age_yr` <= 10) %>%
   mutate(
-   ug = u_SDSS - g_SDSS,
-   ur = u_SDSS - r_SDSS,
-   gr = g_SDSS - r_SDSS,
-   ri = r_SDSS - i_SDSS,
+    ug = u_SDSS - g_SDSS,
+    ur = u_SDSS - r_SDSS,
+    gr = g_SDSS - r_SDSS,
+    gi = g_SDSS - i_SDSS,
+    ri = r_SDSS - i_SDSS,
   ) %>%
-  select(c(Z, log_age_yr, ug, ur, gr, ri))
+  select(c(Z, log_age_yr, ug, ur, gr, gi, ri))
 df_miles_filtered <- df_miles %>%
   filter(`log_age_yr` >= 7 & `log_age_yr` <= 10) %>%
   select(1:7) %>%
@@ -50,9 +51,10 @@ df_miles_filtered <- df_miles %>%
     ug = u_SDSS - g_SDSS,
     ur = u_SDSS - r_SDSS,
     gr = g_SDSS - r_SDSS,
+    gi = g_SDSS - i_SDSS,
     ri = r_SDSS - i_SDSS,
   ) %>%
-  select(c(Z, log_age_yr, ug, ur, gr, ri))
+  select(c(Z, log_age_yr, ug, ur, gr, gi, ri))
 df_syncomil_filtered <- df_syncomil %>%
   filter(`log_age_yr` >= 7 & `log_age_yr` <= 10) %>%
   select(1:7) %>%
@@ -60,9 +62,10 @@ df_syncomil_filtered <- df_syncomil %>%
     ug = u_SDSS - g_SDSS,
     ur = u_SDSS - r_SDSS,
     gr = g_SDSS - r_SDSS,
+    gi = g_SDSS - i_SDSS,
     ri = r_SDSS - i_SDSS,
   ) %>%
-  select(c(Z, log_age_yr, ug, ur, gr, ri))
+  select(c(Z, log_age_yr, ug, ur, gr, gi, ri))
 
 df_cbc_long <- pivot_longer(df_cbc_filtered,cols = -c('Z', 'log_age_yr'), names_to = 'color', values_to = 'color_value')
 df_miles_long <- pivot_longer(df_miles_filtered, cols = -c('Z', 'log_age_yr'), names_to = 'color', values_to = 'color_value')
@@ -151,5 +154,38 @@ ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig4_color_density.png", fig4,
 
 print(fig4)
 
+fig5 <- ggplot(color_combined, aes(x = color, y = delta, fill = question)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_hline(yintercept = 0) +
+  scale_x_discrete(labels = color_labels) +
+  coord_cartesian(ylim = c(-0.3,0.3)) +
+  labs(
+    x = 'Color',
+    y = expression(paste(Delta, 'color')),
+    title = "Figure 4: Color Differences Between Stellar Population Models",
+    subtitle = "Density plots showing the distributions of colour differences ( colour, defined in Section 4.1.1) for the different combinations of SDSS-based
+colours (in rows) and the model effects (in columns). Colours indicate the metallicities Z, as indicated in the label.",
+    fill = "",
+    color = "Metallicity (Z)"
+  ) +
+  # Apply clean theme
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 11),
+    legend.position = "bottom",
+    # --- ADICIONE OU VERIFIQUE ESTAS LINHAS ---
+    plot.background = element_rect(fill = "white", colour = NA), # Fundo de todo o gráfico
+    panel.background = element_rect(fill = "white", colour = NA) # Fundo do painel de dados
+    # ----------------------------------------
+  )
 
+
+print(fig5)
+
+# Save the plot
+ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig5_color_boxplot.png", fig5, 
+       width = 16, height = 10, units = "in", dpi = 300)
 
