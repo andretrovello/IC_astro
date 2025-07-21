@@ -15,17 +15,14 @@ mixture2metallicity <- function(mixture) {
   return(metallicity)
 }
 
-clean_text <- function(line) {
+clean_text <- function(line, mode = 'idx') {
   line <- unlist(strsplit(line, "\\s+")) # removes whitespaces (\\+s) between words
-  #line <- line[line != "#"] # removes #
-  line <- str_replace(line, "^#", "") # Substitui '#' no início (^) por nada ("")
+  if (mode == 'idx') {line <- line[line != "#"]} # removes #
+  else if (mode == 'color') {line <- str_replace(line, "^#", "")} # Substitui '#' no início (^) por nada ("")
   return(line)
 }
 
 read_data_and_filter <- function(base_path = "C:/Users/dedet/Desktop/IC_astro/input/", file, skip_lines, spec_library) {
-  print(file)
-  print(base_path)
-  print(paste0(base_path,file))
   data <- read.table(paste0(base_path,file), skip = skip_lines+1, header = FALSE) # reads data skiping skip_lines+1
   header <- readLines(paste0(base_path,file))[skip_lines] # gets header from lines [[skip_lines:(skip_lines + 1)]]
   
@@ -37,7 +34,6 @@ read_data_and_filter <- function(base_path = "C:/Users/dedet/Desktop/IC_astro/in
   
     # finds metallicity value in file name and extracts it 
     mixture <- str_split(file, '_')[[1]][7]
-    print(mixture)
     metallicity <- mixture2metallicity(mixture)
 
     

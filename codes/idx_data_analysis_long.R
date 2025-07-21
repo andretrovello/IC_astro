@@ -153,4 +153,83 @@ print(fig7)
 ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig7_indices_density.png", fig7, 
        width = 16, height = 12, units = "in", dpi = 300)
 
-cat("\nFigure 7 saved as 'figure7_indices_density.png'\n")
+fig11 <- ggplot(indices_combined, aes(x = idx_name)) +
+  facet_wrap(~question) +
+  geom_boxplot()
+
+print(fig11)
+
+# This allows comparison across indices with different scales
+idx_scale <- indices_combined |>
+  group_by(idx_name, question) |>
+  mutate(scale_delta = as.numeric(scale(delta))) 
+
+cat("Z-score normalization complete. Each index now has mean=0, sd=1.\n")
+
+# =============================================================================
+# CREATE FIGURE 11: SPECTRAL INDEX BOXPLOTS
+# =============================================================================
+
+cat("\n=== Creating Figure 11: Spectral Index Boxplots ===\n")
+
+# Create separate plots for each question, then combine
+# This ensures proper ordering within each panel
+
+# Calculate median values explicitly for each question
+synthetic_medians <- idx_scale |>
+  filter(question == "Synthetic effect") |>
+  group_by(idx_name) |>
+  summarise(median_delta = median(scale_delta)) |>
+  arrange(median_delta)
+
+coverage_medians <- idx_scale |>
+  filter(question == "Coverage effect") |>
+  group_by(idx_name) |>
+  summarise(median_delta = median(scale_delta)) |>
+  arrange(median_delta)
+
+# Print the orderings to verify
+cat("Synthetic effect ordering (lowest to highest median):\n")
+print(synthetic_medians)
+cat("\nCoverage effect ordering (lowest to highest median):\n")
+print(coverage_medians)
+
+# Synthetic effect plot  
+synthetic_data <- idx_scale |>
+  filter(question == "Synthetic effect") |>
+  mutate(idx_name_ordered = factor(idx_name, levels = synthetic_medians$idx_name))
+
+p1 <- ggplot(synthetic_data, aes(x = idx_name_ordered, y = scale_delta)) +
+  geom_hline(yintercept = 0, color = "gray") +
+  geom_boxplot(notch = FALSE, outlier.color = "NA") +
+  coord_cartesian(ylim = c(-5., 4.)) +
+  labs(title = "Synthetic effect") +
+  xlab("") +
+  ylab(expression(paste(Delta, "idx (scaled)"))) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title = element_text(size=14,face="bold"),
+        plot.title = element_text(hjust = 0.5))
+
+# Coverage effect plot
+coverage_data <- idx_scale |>
+  filter(question == "Coverage effect") |>
+  mutate(idx_name_ordered = factor(idx_name, levels = coverage_medians$idx_name))
+
+p2 <- ggplot(coverage_data, aes(x = idx_name_ordered, y = scale_delta)) +
+  geom_hline(yintercept = 0, color = "gray") +
+  geom_boxplot(notch = FALSE, outlier.color = "NA") +
+  coord_cartesian(ylim = c(-5., 4.)) +
+  labs(title = "Coverage effect") +
+  xlab("Spectral Index") +
+  ylab(expression(paste(Delta, "idx (scaled)"))) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title = element_text(size=14,face="bold"),
+        plot.title = element_text(hjust = 0.5))
+
+# Combine the plots
+library(gridExtra)
+fig11 <- grid.arrange(p1, p2, ncol = 1)
+
+# Save the plot
+ggsave("C:/Users/dedet/Desktop/IC_astro/output/fig11_indices_boxplot.png", fig11, 
+       width = 14, height = 10, units = "in", dpi = 300)
